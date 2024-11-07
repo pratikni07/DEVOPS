@@ -1,0 +1,138 @@
+graph TB
+    subgraph "External"
+        client[Clients]
+        cdn[CDN]
+    end
+
+    subgraph "Kubernetes Cluster"
+        subgraph "Ingress Layer"
+            ing[Ingress Controller]
+            ssl[SSL Termination]
+        end
+
+        subgraph "Microservices Namespace"
+            subgraph "Common Resources"
+                cm[Common ConfigMap]
+                sec[Common Secrets]
+            end
+
+            subgraph "Main Service"
+                main_svc[Main Service]
+                main_hpa[Main HPA]
+                main_pdb[Main PDB]
+                subgraph "Main Pods"
+                    main_pod1[Pod 1]
+                    main_pod2[Pod 2]
+                    main_pod3[Pod 3]
+                end
+            end
+
+            subgraph "Feeds Service"
+                feed_svc[Feeds Service]
+                feed_hpa[Feeds HPA]
+                feed_pdb[Feeds PDB]
+                subgraph "Feeds Pods"
+                    feed_pod1[Pod 1]
+                    feed_pod2[Pod 2]
+                    feed_pod3[Pod 3]
+                end
+            end
+
+            subgraph "Marketplace Service"
+                market_svc[Marketplace Service]
+                market_hpa[Marketplace HPA]
+                market_pdb[Marketplace PDB]
+                subgraph "Marketplace Pods"
+                    market_pod1[Pod 1]
+                    market_pod2[Pod 2]
+                    market_pod3[Pod 3]
+                end
+            end
+
+            np[Network Policies]
+        end
+
+        subgraph "Monitoring"
+            prom[Prometheus]
+            grafana[Grafana]
+        end
+
+        subgraph "Infrastructure"
+            redis[(Redis)]
+            kafka[(Kafka)]
+            db[(Database)]
+        end
+    end
+
+    %% External Connections
+    client --> cdn
+    cdn --> ing
+    ing --> ssl
+
+    %% Service Connections
+    ssl --> main_svc
+    ssl --> feed_svc
+    ssl --> market_svc
+
+    %% Main Service Connections
+    main_svc --> main_pod1 & main_pod2 & main_pod3
+    main_hpa --> main_svc
+    main_pdb --> main_svc
+    cm --> main_pod1 & main_pod2 & main_pod3
+    sec --> main_pod1 & main_pod2 & main_pod3
+
+    %% Feeds Service Connections
+    feed_svc --> feed_pod1 & feed_pod2 & feed_pod3
+    feed_hpa --> feed_svc
+    feed_pdb --> feed_svc
+    cm --> feed_pod1 & feed_pod2 & feed_pod3
+    sec --> feed_pod1 & feed_pod2 & feed_pod3
+
+    %% Marketplace Service Connections
+    market_svc --> market_pod1 & market_pod2 & market_pod3
+    market_hpa --> market_svc
+    market_pdb --> market_svc
+    cm --> market_pod1 & market_pod2 & market_pod3
+    sec --> market_pod1 & market_pod2 & market_pod3
+
+    %% Infrastructure Connections
+    main_pod1 & main_pod2 & main_pod3 --> redis
+    main_pod1 & main_pod2 & main_pod3 --> kafka
+    main_pod1 & main_pod2 & main_pod3 --> db
+
+    feed_pod1 & feed_pod2 & feed_pod3 --> redis
+    feed_pod1 & feed_pod2 & feed_pod3 --> kafka
+    feed_pod1 & feed_pod2 & feed_pod3 --> db
+
+    market_pod1 & market_pod2 & market_pod3 --> redis
+    market_pod1 & market_pod2 & market_pod3 --> kafka
+    market_pod1 & market_pod2 & market_pod3 --> db
+
+    %% Monitoring Connections
+    main_pod1 & main_pod2 & main_pod3 --> prom
+    feed_pod1 & feed_pod2 & feed_pod3 --> prom
+    market_pod1 & market_pod2 & market_pod3 --> prom
+    prom --> grafana
+
+    %% Network Policy Connections
+    np --> main_pod1 & main_pod2 & main_pod3
+    np --> feed_pod1 & feed_pod2 & feed_pod3
+    np --> market_pod1 & market_pod2 & market_pod3
+
+    classDef external fill:#b8b8b8,stroke:#fff,stroke-width:1px;
+    classDef ingress fill:#ff9900,stroke:#fff,stroke-width:1px;
+    classDef service fill:#326ce5,stroke:#fff,stroke-width:1px;
+    classDef pod fill:#3883fa,stroke:#fff,stroke-width:1px,color:#fff;
+    classDef config fill:#feb236,stroke:#fff,stroke-width:1px;
+    classDef monitoring fill:#66cc91,stroke:#fff,stroke-width:1px;
+    classDef infra fill:#818181,stroke:#fff,stroke-width:1px;
+    classDef security fill:#ff7676,stroke:#fff,stroke-width:1px;
+
+    class client,cdn external;
+    class ing,ssl ingress;
+    class main_svc,feed_svc,market_svc service;
+    class main_pod1,main_pod2,main_pod3,feed_pod1,feed_pod2,feed_pod3,market_pod1,market_pod2,market_pod3 pod;
+    class cm,sec config;
+    class prom,grafana monitoring;
+    class redis,kafka,db infra;
+    class np security;

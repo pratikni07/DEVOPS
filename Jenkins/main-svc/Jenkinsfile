@@ -1,0 +1,79 @@
+pipeline {
+    agent any
+
+    environment {
+        REGISTRY_CREDENTIALS = credentials('docker-registry-credentials')
+        DOCKER_REGISTRY = "mydockerregistry.com"
+        IMAGE_NAME = "main-service"
+        RECIPIENT_EMAIL = "team@example.com"
+    }
+
+    options {
+        timestamps()
+        timeout(time: 60, unit: 'MINUTES')
+        retry(2)
+    }
+
+    stages {
+        stage('Code Checkout') {
+            steps {
+                echo "Checking out code for main service..."
+                git url: 'https://github.com/my-org/main-service.git', branch: 'main'
+            }
+        }
+
+        stage('Build & Test') {
+            steps {
+                echo "Building and testing main service..."
+                sh 'npm install'
+                sh 'npm run lint'
+                sh 'npm test'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo "Building Docker image for main service..."
+                    docker.build("${DOCKER_REGISTRY}/${IMAGE_NAME}:${env.BUILD_ID}")
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    echo "Pushing Docker image for main service..."
+                    docker.withRegistry("https://${DOCKER_REGISTRY}", 'REGISTRY_CREDENTIALS') {
+                        docker.image("${DOCKER_REGISTRY}/${IMAGE_NAME}:${env.BUILD_ID}").push()
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo "Deploying main service to Kubernetes..."
+                sh "kubectl apply -f k8s/main-service-deployment.yaml --record"
+            }
+        }
+    }
+
+    post {
+        success {
+            emailext (
+                subject: "Main Service - Deployment Successful",
+                body: "The main service has been successfully deployed.",
+                to: "${RECIPIENT_EMAIL}"
+            )
+        }
+        failure {
+            emailext (
+                subject: "Main Service - Deployment Failed",
+                body: "The main service deployment failed. Please check Jenkins logs.",
+                to: "${RECIPIENT_EMAIL}"
+            )
+        }
+    }
+}
+

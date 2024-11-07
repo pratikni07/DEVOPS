@@ -1,0 +1,39 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: microservices-ingress
+  namespace: microservices
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+  - hosts:
+    - api.megamart.com
+    secretName: tls-secret
+  rules:
+  - host: api.megamart.com
+    http:
+      paths:
+      - path: /api/v1
+        pathType: Prefix
+        backend:
+          service:
+            name: main-service
+            port:
+              number: 80
+      - path: /api/v1/feeds
+        pathType: Prefix
+        backend:
+          service:
+            name: feeds-service
+            port:
+              number: 80
+      - path: /api/v1/marketplace
+        pathType: Prefix
+        backend:
+          service:
+            name: marketplace-service
+            port:
+              number: 80

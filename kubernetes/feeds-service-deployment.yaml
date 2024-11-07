@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feeds-service
+  namespace: microservices
+  labels:
+    app: feeds-service
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: feeds-service
+  template:
+    metadata:
+      labels:
+        app: feeds-service
+    spec:
+      containers:
+      - name: feeds-service
+        image: feeds-service:1.0.0
+        ports:
+        - containerPort: 8081
+        resources:
+          requests:
+            cpu: 300m
+            memory: 512Mi
+          limits:
+            cpu: 800m
+            memory: 1Gi
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8081
+          initialDelaySeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8081
+          initialDelaySeconds: 15
+        envFrom:
+        - configMapRef:
+            name: common-config
+        - secretRef:
+            name: common-secrets

@@ -1,0 +1,90 @@
+pipeline {
+    agent any
+
+    environment {
+        REGISTRY_CREDENTIALS = credentials('docker-registry-credentials')
+        DOCKER_REGISTRY = "company-xx"
+        IMAGE_NAME = "feeds-service"
+        RECIPIENT_EMAIL = "test@champhunt.com"
+    }
+
+    options {
+        timestamps()
+        timeout(time: 60, unit: 'MINUTES')
+        retry(2)
+    }
+
+    stages {
+        stage('Code Checkout') {
+            steps {
+                echo "Checking out code for feeds service..."
+                git url: 'https://github.com/company-xx/feeds-service.git', branch: 'main'
+            }
+        }
+
+        stage('Build & Test') {
+            steps {
+                echo "Building and testing feeds service..."
+                sh 'npm install'
+                sh 'npm run lint'
+                sh 'npm test'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo "Building Docker image for feeds service..."
+                    docker.build("${DOCKER_REGISTRY}/${IMAGE_NAME}:${env.BUILD_ID}")
+                }
+            }
+        }
+
+        stage('Trivy Scan') {
+            steps {
+                script {
+                    echo "Running Trivy vulnerability scan for feeds service..."
+                    sh """
+                        docker pull aquasec/trivy:latest
+                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --exit-code 1 --severity HIGH,CRITICAL ${DOCKER_REGISTRY}/${IMAGE_NAME}:${env.BUILD_ID}
+                    """
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    echo "Pushing Docker image for feeds service..."
+                    docker.withRegistry("https://${DOCKER_REGISTRY}", 'REGISTRY_CREDENTIALS') {
+                        docker.image("${DOCKER_REGISTRY}/${IMAGE_NAME}:${env.BUILD_ID}").push()
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo "Deploying feeds service to Kubernetes..."
+                sh "kubectl apply -f k8s/feeds-service-deployment.yaml --record"
+            }
+        }
+    }
+
+    post {
+        success {
+            emailext (
+                subject: "Feeds Service - Deployment Successful",
+                body: "The feeds service has been successfully deployed.",
+                to: "${RECIPIENT_EMAIL}"
+            )
+        }
+        failure {
+            emailext (
+                subject: "Feeds Service - Deployment Failed",
+                body: "The feeds service deployment failed. Please check Jenkins logs.",
+                to: "${RECIPIENT_EMAIL}"
+            )
+        }
+    }
+}
